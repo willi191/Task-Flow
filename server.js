@@ -7,6 +7,9 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const DATA_DIR = path.join(__dirname, 'data');
 const DATA_FILE = path.join(DATA_DIR, 'tasks.json');
+const LOGIN_USER = process.env.LOGIN_USER || 'admin';
+const LOGIN_PASSWORD = process.env.LOGIN_PASSWORD || 'taskflow123';
+const sessions = new Set();
 
 app.use(express.json());
 app.use(express.static(__dirname));
@@ -28,6 +31,20 @@ async function readTasks() {
 
 async function writeTasks(tasks) {
   await fs.writeFile(DATA_FILE, `${JSON.stringify(tasks, null, 2)}\n`, 'utf8');
+}
+
+function getSessionToken(req) {
+  const cookies = req.headers.cookie || '';
+  const sessionCookie = cookies.split(';').find((cookie) => cookie.trim().startsWith('taskflow_session='));
+  return sessionCookie ? sessionCookie.trim().split('=')[1] : null;
+}
+
+function requireAuth(req, res, next) {
+  const token = getSessionToken(req);
+  if (!token || !sessions.has(token)) {
+    return res.status(401).json({ error: 'Debes iniciar sesión para continuar.' });
+  }
+  next();
 }
 
 function validateTask(body, partial = false) {
@@ -65,7 +82,34 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, message: 'TaskFlow API funcionando' });
 });
 
-app.get('/api/tasks', async (_req, res, next) => {
+app.post('/api/auth/login', (req, res) => {
+  const { username, password } = req.body || {};
+  if (username !== LOGIN_USER || password !== LOGIN_PASSWORD) {
+    return res.status(401).json({ error: 'Usuario o contraseña incorrectos.' });
+  }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  sessions.add(token);
+  res.setHeader('Set-Cookie', `taskflow_session=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=86400`);
+  res.json({ username: LOGIN_USER, message: 'Sesión iniciada correctamente.' });
+});
+
+app.get('/api/auth/me', (req, res) => {
+  const token = getSessionToken(req);
+  if (!token || !sessions.has(token)) {
+    return res.status(401).json({ authenticated: false });
+  }
+  res.json({ authenticated: true, username: LOGIN_USER });
+});
+
+app.post('/api/auth/logout', (req, res) => {
+  const token = getSessionToken(req);
+  if (token) sessions.delete(token);
+  res.setHeader('Set-Cookie', 'taskflow_session=; HttpOnly; SameSite=Lax; Path=/; Max-Age=0');
+  res.status(204).send();
+});
+
+app.get('/api/tasks', requireAuth, async (_req, res, next) => {
   try {
     const tasks = await readTasks();
     res.json(tasks);
@@ -74,7 +118,7 @@ app.get('/api/tasks', async (_req, res, next) => {
   }
 });
 
-app.post('/api/tasks', async (req, res, next) => {
+app.post('/api/tasks', requireAuth, async (req, res, next) => {
   try {
     const errors = validateTask(req.body);
     if (errors.length) return res.status(400).json({ errors });
@@ -98,7 +142,7 @@ app.post('/api/tasks', async (req, res, next) => {
   }
 });
 
-app.put('/api/tasks/:id', async (req, res, next) => {
+app.put('/api/tasks/:id', requireAuth, async (req, res, next) => {
   try {
     const errors = validateTask(req.body, true);
     if (errors.length) return res.status(400).json({ errors });
@@ -126,7 +170,7 @@ app.put('/api/tasks/:id', async (req, res, next) => {
   }
 });
 
-app.delete('/api/tasks/:id', async (req, res, next) => {
+app.delete('/api/tasks/:id', requireAuth, async (req, res, next) => {
   try {
     const tasks = await readTasks();
     const taskExists = tasks.some((task) => task.id === req.params.id);

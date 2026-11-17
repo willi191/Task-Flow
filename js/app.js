@@ -14,6 +14,13 @@ const listSummary = document.querySelector('#listSummary');
 const searchInput = document.querySelector('#searchInput');
 const filterButtons = document.querySelectorAll('.filter-button');
 const focusAddTaskButton = document.querySelector('#focusAddTask');
+const loginScreen = document.querySelector('#loginScreen');
+const appContent = document.querySelector('#appContent');
+const loginForm = document.querySelector('#loginForm');
+const loginUsername = document.querySelector('#loginUsername');
+const loginPassword = document.querySelector('#loginPassword');
+const loginError = document.querySelector('#loginError');
+const logoutButton = document.querySelector('#logoutButton');
 
 let tasks = [];
 let currentFilter = 'all';
@@ -39,6 +46,18 @@ async function loadTasks() {
   } catch (error) {
     showError(error.message);
   }
+}
+
+function showApp() {
+  loginScreen.classList.add('hidden');
+  appContent.classList.remove('hidden');
+  loadTasks();
+}
+
+function showLogin() {
+  appContent.classList.add('hidden');
+  loginScreen.classList.remove('hidden');
+  loginUsername.focus();
 }
 
 function showError(message) {
@@ -215,4 +234,33 @@ focusAddTaskButton.addEventListener('click', () => {
   setTimeout(() => taskTitleInput.focus(), 350);
 });
 
-loadTasks();
+loginForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  loginError.classList.add('hidden');
+
+  try {
+    await request('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({
+        username: loginUsername.value.trim(),
+        password: loginPassword.value,
+      }),
+    });
+    loginForm.reset();
+    showApp();
+  } catch (error) {
+    loginError.textContent = error.message;
+    loginError.classList.remove('hidden');
+  }
+});
+
+logoutButton.addEventListener('click', async () => {
+  await request('/api/auth/logout', { method: 'POST' });
+  tasks = [];
+  renderTasks();
+  showLogin();
+});
+
+request('/api/auth/me')
+  .then(() => showApp())
+  .catch(() => showLogin());
