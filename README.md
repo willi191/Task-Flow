@@ -46,7 +46,11 @@ La implementación puede utilizar datos simulados durante esta primera entrega. 
 
 - **HTML5:** estructura de la página.
 - **CSS3:** estilos, colores, distribución y diseño responsive.
+<<<<<<< HEAD
 - **JavaScript:** lógica e interacción con las tareas.
+=======
+- **JavaScript:** lógica e interaección con las tareas.
+>>>>>>> 67dac6bc40ee3d138f1fa640eca67b9ab8fcc080
 - **Node.js y Express:** servidor y API REST.
 - **JSON:** almacenamiento local inicial del backend.
 - **Visual Studio Code:** edición del código.
@@ -222,3 +226,7 @@ Proyecto desarrollado para la asignatura **Ingeniería Web 2** de la Universidad
 ## Licencia
 
 Este proyecto fue creado con fines académicos. Si se requiere una licencia específica, puede agregarse posteriormente, por ejemplo, MIT.
+<<<<<<< HEAD
+=======
+
+>>>>>>> 67dac6bc40ee3d138f1fa640eca67b9ab8fcc080
